@@ -5,6 +5,73 @@ import { Library, NotFoundError } from "@fjell/lib";
 import { Request, Response } from "express";
 import { ItemRouter, ItemRouterOptions } from "./ItemRouter.js";
 
+/**
+ * Extract serializable error details from Error objects
+ *
+ * Error objects have non-enumerable properties that don't serialize to JSON.
+ * This function explicitly extracts all meaningful details into a plain object.
+ */
+function extractErrorDetails(error: any): Record<string, any> {
+  if (!error) {
+    return { type: 'unknown_error' };
+  }
+
+  const details: Record<string, any> = {};
+
+  // Standard JavaScript Error properties
+  if (typeof error.message === 'string') {
+    details.message = error.message;
+  }
+  if (typeof error.name === 'string') {
+    details.name = error.name;
+  }
+  if (typeof error.code === 'string' || typeof error.code === 'number') {
+    details.code = error.code;
+  }
+  if (typeof error.stack === 'string') {
+    details.stack = error.stack;
+  }
+
+  // Database-specific error properties (PostgreSQL/Sequelize)
+  if (typeof error.constraint === 'string') {
+    details.constraint = error.constraint;
+  }
+  if (typeof error.detail === 'string') {
+    details.detail = error.detail;
+  }
+  if (typeof error.table === 'string') {
+    details.table = error.table;
+  }
+  if (typeof error.column === 'string') {
+    details.column = error.column;
+  }
+
+  // Sequelize validation errors
+  if (error.errors && Array.isArray(error.errors)) {
+    details.validationErrors = error.errors.map((e: any) => {
+      const errorDetail: any = {
+        message: e.message,
+        type: e.type,
+        path: e.path
+      };
+      if (e.value !== null && e.value !== void 0) {
+        errorDetail.value = String(e.value).substring(0, 100);
+      }
+      return errorDetail;
+    });
+  }
+
+  // HTTP status
+  if (typeof error.status === 'number') {
+    details.status = error.status;
+  }
+  if (typeof error.statusCode === 'number') {
+    details.statusCode = error.statusCode;
+  }
+
+  return details;
+}
+
 interface ParsedQuery {
   [key: string]: undefined | string | string[] | ParsedQuery | ParsedQuery[];
 }
@@ -56,7 +123,7 @@ export class CItemRouter<
   public createItem = async (req: Request, res: Response) => {
     const libOperations = this.lib.operations;
     this.logger.default('Creating Item', { body: req?.body, query: req?.query, params: req?.params, locals: res?.locals });
-    
+
     try {
       const itemToCreate = this.convertDates(req.body as Item<S, L1, L2, L3, L4, L5>);
       let item = validatePK(await libOperations.create(
@@ -82,7 +149,7 @@ export class CItemRouter<
         suggestion: 'Check request body validation, required fields, parent locations, unique constraints, and data types',
         stack: error?.stack
       });
-      
+
       // Check for validation errors
       if (error.name === 'CreateValidationError' || error.name === 'ValidationError' ||
           error.name === 'SequelizeValidationError' ||
@@ -152,10 +219,10 @@ export class CItemRouter<
         } else {
           // Call find() with pagination options - it returns FindOperationResult
           const result = await libOperations.find(finder, parsedParams, locations, findOptions);
-          
+
           // Validate items - validatePK can handle arrays
           const validatedItems = validatePK(result.items, this.getPkType()) as Item<S, L1, L2, L3, L4, L5>[];
-          
+
           res.json({
             items: validatedItems,
             metadata: result.metadata
@@ -167,7 +234,7 @@ export class CItemRouter<
         const locations = this.getLocations(res);
         this.logger.debug('Finding Items with Query: %j', itemQuery);
         this.logger.debug('Location keys being passed: %j', locations);
-        
+
         // Parse pagination options from query params
         const allOptions: AllOptions = {};
         if (req.query.limit) {
@@ -176,14 +243,14 @@ export class CItemRouter<
         if (req.query.offset) {
           allOptions.offset = parseInt(req.query.offset as string, 10);
         }
-        
+
         // libOperations.all() now returns AllOperationResult<V>
         const result = await libOperations.all(itemQuery, locations, allOptions);
         this.logger.debug('Found %d Items with Query', result.items.length);
 
         // Validate PKs on returned items
         const validatedItems = result.items.map((item: Item<S, L1, L2, L3, L4, L5>) => validatePK(item, this.getPkType()));
-        
+
         // Return full AllOperationResult structure with validated items
         res.json({
           items: validatedItems,
@@ -191,7 +258,7 @@ export class CItemRouter<
         });
       }
     } catch (error: any) {
-      this.logger.error('Error in findItems', { error });
+      this.logger.error('Error in findItems', extractErrorDetails(error));
       if (error instanceof NotFoundError || error?.name === 'NotFoundError') {
         res.status(404).json({ error: error.message || 'Parent item not found' });
       } else {
