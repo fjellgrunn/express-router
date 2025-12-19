@@ -17,6 +17,73 @@ import LibLogger from "./logger.js";
 import { createErrorHandler, ErrorHandlerOptions } from "./errorHandler.js";
 
 /**
+ * Extract serializable error details from Error objects
+ *
+ * Error objects have non-enumerable properties that don't serialize to JSON.
+ * This function explicitly extracts all meaningful details into a plain object.
+ */
+function extractErrorDetails(error: any): Record<string, any> {
+  if (!error) {
+    return { type: 'unknown_error' };
+  }
+
+  const details: Record<string, any> = {};
+
+  // Standard JavaScript Error properties
+  if (typeof error.message === 'string') {
+    details.message = error.message;
+  }
+  if (typeof error.name === 'string') {
+    details.name = error.name;
+  }
+  if (typeof error.code === 'string' || typeof error.code === 'number') {
+    details.code = error.code;
+  }
+  if (typeof error.stack === 'string') {
+    details.stack = error.stack;
+  }
+
+  // Database-specific error properties (PostgreSQL/Sequelize)
+  if (typeof error.constraint === 'string') {
+    details.constraint = error.constraint;
+  }
+  if (typeof error.detail === 'string') {
+    details.detail = error.detail;
+  }
+  if (typeof error.table === 'string') {
+    details.table = error.table;
+  }
+  if (typeof error.column === 'string') {
+    details.column = error.column;
+  }
+
+  // Sequelize validation errors
+  if (error.errors && Array.isArray(error.errors)) {
+    details.validationErrors = error.errors.map((e: any) => {
+      const errorDetail: any = {
+        message: e.message,
+        type: e.type,
+        path: e.path
+      };
+      if (e.value !== null && e.value !== void 0) {
+        errorDetail.value = String(e.value).substring(0, 100);
+      }
+      return errorDetail;
+    });
+  }
+
+  // HTTP status
+  if (typeof error.status === 'number') {
+    details.status = error.status;
+  }
+  if (typeof error.statusCode === 'number') {
+    details.statusCode = error.statusCode;
+  }
+
+  return details;
+}
+
+/**
  * Router-level action method signature - aligned with library ActionMethod pattern
  * Takes the resolved item key, action parameters, and HTTP context
  */
@@ -237,7 +304,7 @@ export class ItemRouter<
       const result = await libOperations.allAction(allActionKey, req.body, this.getLocations(res));
       res.json(result);
     } catch (error: any) {
-      this.logger.error('Error in postAllAction', { error });
+      this.logger.error('Error in postAllAction', extractErrorDetails(error));
       // Check if it's a validation error or action not found error
       if ((error.name === 'ValidationError' || error.message?.includes('not found')) && error.message) {
         res.status(500).json({ error: 'All Action is not configured' });
@@ -278,7 +345,7 @@ export class ItemRouter<
       const result = await libOperations.allFacet(facetKey, combinedQueryParams, this.getLocations(res));
       res.json(result);
     } catch (error: any) {
-      this.logger.error('Error in getAllFacet', { error });
+      this.logger.error('Error in getAllFacet', extractErrorDetails(error));
       // Check if it's a validation error or facet not found error
       if ((error.name === 'ValidationError' || error.message?.includes('not found')) && error.message) {
         res.status(500).json({ error: 'All Facet is not configured' });
@@ -319,7 +386,7 @@ export class ItemRouter<
       const result = await libOperations.action(ik, actionKey, req.body);
       res.json(result);
     } catch (error: any) {
-      this.logger.error('Error in postItemAction', { error });
+      this.logger.error('Error in postItemAction', extractErrorDetails(error));
       // Check if it's a validation error or action not found error
       if ((error.name === 'ValidationError' || error.message?.includes('not found')) && error.message) {
         res.status(500).json({ error: 'Item Action is not configured' });
@@ -361,7 +428,7 @@ export class ItemRouter<
       const result = await libOperations.facet(ik, facetKey, combinedQueryParams);
       res.json(result);
     } catch (error: any) {
-      this.logger.error('Error in getItemFacet', { error });
+      this.logger.error('Error in getItemFacet', extractErrorDetails(error));
       // Check if it's a validation error or facet not found error
       if ((error.name === 'ValidationError' || error.message?.includes('not found')) && error.message) {
         res.status(500).json({ error: 'Item Facet is not configured' });
@@ -583,11 +650,11 @@ export class ItemRouter<
           originalError.message.includes('Cannot update') ||
           originalError.message.toLowerCase().includes('not found')
         ));
-      
+
       if (isNotFound) {
         res.status(404).json({ ik, message: "Item Not Found" });
       } else {
-        this.logger.error('Error in deleteItem', { error });
+        this.logger.error('Error in deleteItem', extractErrorDetails(error));
         res.status(500).json({ ik, message: "General Error" });
       }
     }
@@ -651,11 +718,11 @@ export class ItemRouter<
           originalError.message.includes('Cannot update') ||
           originalError.message.toLowerCase().includes('not found')
         ));
-      
+
       if (isNotFound) {
         res.status(404).json({ ik, message: "Item Not Found" });
       } else {
-        this.logger.error('Error in getItem', { error });
+        this.logger.error('Error in getItem', extractErrorDetails(error));
         res.status(500).json({ ik, message: "General Error" });
       }
     }
@@ -695,11 +762,11 @@ export class ItemRouter<
           originalError.message.includes('Cannot update') ||
           originalError.message.toLowerCase().includes('not found')
         ));
-      
+
       if (isNotFound) {
         res.status(404).json({ ik, message: "Item Not Found" });
       } else {
-        this.logger.error('Error in updateItem', { error });
+        this.logger.error('Error in updateItem', extractErrorDetails(error));
         res.status(500).json({ ik, message: "General Error" });
       }
     }
