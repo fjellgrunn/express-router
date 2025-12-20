@@ -8,7 +8,7 @@
  */
 
 import { ItemRouter, ItemRouterOptions } from "../src/ItemRouter.js";
-import { ComKey, Item, LocKeyArray, PriKey } from "@fjell/core";
+import { ComKey, Item, LocKeyArray, PriKey } from "@fjell/types";
 import { Request, Response } from "express";
 
 // Sample Item Types

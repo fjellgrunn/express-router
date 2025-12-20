@@ -12,7 +12,7 @@
  */
 
 import express, { Application } from 'express';
-import { AllOperationResult, ComKey, Item, PriKey, UUID } from '@fjell/core';
+import { AllOperationResult, ComKey, Item, PriKey, UUID } from "@fjell/types";
 import { CItemRouter, createRegistry, PItemRouter } from '../src';
 import { NotFoundError } from '@fjell/lib';
 

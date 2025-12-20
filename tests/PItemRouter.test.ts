@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { PItemRouter } from "../src/PItemRouter";
-import { Item, PriKey, UUID } from "@fjell/core";
+import { Item, PriKey, UUID } from "@fjell/types";
 import { Primary } from "@fjell/lib";
 import { Request, Response } from "express";
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -370,8 +370,8 @@ describe("PItemRouter", () => {
       mockLib.operations.all.mockResolvedValue(mockItemsWithoutValidation);
 
       // Mock validatePK function behavior
-      vi.doMock('@fjell/core', () => ({
-        ...vi.importActual('@fjell/core') as any,
+      vi.doMock('@fjell/validation', async () => ({
+        ...(await vi.importActual('@fjell/validation') as any),
         validatePK: vi.fn().mockReturnValue(testItem)
       }));
 
