@@ -1,5 +1,5 @@
 import LibLogger from "./logger.js";
-import { Coordinate, Item } from "@fjell/core";
+import { Coordinate, Item } from "@fjell/types";
 import { Instance as BaseInstance, createInstance as createBaseInstance, Registry } from "@fjell/registry";
 import type { Operations } from "@fjell/lib";
 import { Options } from "@fjell/lib";

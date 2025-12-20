@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createRouterWithCollisions } from '../../examples/router-options-example.js';
 import { ItemRouter, ItemRouterOptions } from '../../src/ItemRouter.js';
-import { ComKey, Item, LocKeyArray } from '@fjell/core';
+import { ComKey, Item, LocKeyArray } from "@fjell/types";
 
 // Define minimal Express types to avoid import issues
 interface Request {

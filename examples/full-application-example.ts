@@ -12,7 +12,7 @@
  */
 
 import express, { Application, NextFunction, Request, Response } from 'express';
-import { AllOperationResult, ComKey, Item, LocKey, PriKey, UUID } from '@fjell/core';
+import { AllOperationResult, ComKey, Item, LocKey, PriKey, UUID } from "@fjell/types";
 import { CItemRouter, createRegistry, PItemRouter } from '../src';
 
 // ===== Data Models =====

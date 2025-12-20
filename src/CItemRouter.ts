@@ -1,6 +1,8 @@
 import {
-  AllOptions, ComKey, FindOperationResult, FindOptions, Item, ItemQuery, LocKey, LocKeyArray, paramsToQuery, PriKey, QueryParams, validatePK
-} from "@fjell/core";
+  AllOptions, ComKey, FindOperationResult, FindOptions, Item, ItemQuery, LocKey, LocKeyArray, PriKey, QueryParams
+} from "@fjell/types";
+import { paramsToQuery } from "@fjell/core";
+import { validatePK } from "@fjell/validation";
 import { Library, NotFoundError } from "@fjell/lib";
 import { Request, Response } from "express";
 import { ItemRouter, ItemRouterOptions } from "./ItemRouter.js";

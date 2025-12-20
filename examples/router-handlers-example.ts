@@ -1,6 +1,6 @@
 
 import { CItemRouter, PItemRouter } from '../src';
-import { ComKey, Item, PriKey } from '@fjell/core';
+import { ComKey, Item, PriKey } from "@fjell/types";
 import express from 'express';
 
 // Define data models

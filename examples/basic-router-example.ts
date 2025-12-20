@@ -11,7 +11,7 @@
  * Run this example with: npx tsx examples/basic-router-example.ts
  */
 
-import { AllOperationResult, Item, PriKey, UUID } from '@fjell/core';
+import { AllOperationResult, Item, PriKey, UUID } from "@fjell/types";
 import { NotFoundError } from '@fjell/lib';
 import express, { Application } from 'express';
 import { createRegistry, PItemRouter } from '../src';
