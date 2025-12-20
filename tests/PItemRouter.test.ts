@@ -370,8 +370,8 @@ describe("PItemRouter", () => {
       mockLib.operations.all.mockResolvedValue(mockItemsWithoutValidation);
 
       // Mock validatePK function behavior
-      vi.doMock('@fjell/core', () => ({
-        ...vi.importActual('@fjell/core') as any,
+      vi.doMock('@fjell/validation', async () => ({
+        ...(await vi.importActual('@fjell/validation') as any),
         validatePK: vi.fn().mockReturnValue(testItem)
       }));
 

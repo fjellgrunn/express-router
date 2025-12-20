@@ -7,8 +7,8 @@ import {
   LocKey,
   LocKeyArray,
   PriKey,
-  validatePK
 } from "@fjell/core";
+import { validatePK } from "@fjell/validation";
 import { NotFoundError } from "@fjell/lib";
 import { Instance } from "./Instance.js";
 import deepmerge from "deepmerge";
