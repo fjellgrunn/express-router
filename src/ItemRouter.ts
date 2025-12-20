@@ -1,12 +1,14 @@
 import {
-  ActionError,
   ComKey,
-  cPK,
   Item,
   ItemEvent,
   LocKey,
   LocKeyArray,
   PriKey,
+} from "@fjell/types";
+import {
+  ActionError,
+  cPK,
 } from "@fjell/core";
 import { validatePK } from "@fjell/validation";
 import { NotFoundError } from "@fjell/lib";

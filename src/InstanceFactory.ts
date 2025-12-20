@@ -1,4 +1,4 @@
-import { Coordinate, Item } from "@fjell/core";
+import { Coordinate, Item } from "@fjell/types";
 import { ItemRouter } from "./ItemRouter.js";
 import { InstanceFactory as BaseInstanceFactory, Registry, RegistryHub } from "@fjell/registry";
 import type { Operations } from "@fjell/lib";

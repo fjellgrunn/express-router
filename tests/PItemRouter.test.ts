@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { PItemRouter } from "../src/PItemRouter";
-import { Item, PriKey, UUID } from "@fjell/core";
+import { Item, PriKey, UUID } from "@fjell/types";
 import { Primary } from "@fjell/lib";
 import { Request, Response } from "express";
 import { beforeEach, describe, expect, it, vi } from 'vitest';

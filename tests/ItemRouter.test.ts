@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { ItemRouter, ItemRouterOptions } from "../src/ItemRouter";
-import { ComKey, Item, LocKey, LocKeyArray, PriKey, UUID } from "@fjell/core";
+import { ComKey, Item, LocKey, LocKeyArray, PriKey, UUID } from "@fjell/types";
 import { NotFoundError } from "@fjell/lib";
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 

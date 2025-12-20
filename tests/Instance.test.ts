@@ -2,7 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createInstance, isInstance } from '../src/Instance';
 import { ItemRouter } from '../src/ItemRouter';
-import { Item } from '@fjell/core';
+import { Item } from "@fjell/types";
 import { Coordinate, Registry } from '@fjell/registry';
 import type { Operations } from '../src/Operations';
 import { Options } from '@fjell/lib';

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CItemRouter, PItemRouter } from '../src';
-import { ComKey, Item, PriKey } from '@fjell/core';
+import { ComKey, Item, PriKey } from "@fjell/types";
 import { Request, Response } from 'express';
 
 // Test helper classes to access protected members
