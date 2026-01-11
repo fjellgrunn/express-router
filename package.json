@@ -61,6 +61,6 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/getfjell/express-router.git"
+    "url": "git+https://github.com/fjellgrunn/express-router.git"
   }
 }
