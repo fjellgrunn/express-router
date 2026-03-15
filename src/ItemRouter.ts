@@ -292,6 +292,8 @@ export class ItemRouter<
         );
         if (result != null) {
           res.json(result);
+        } else {
+          res.status(204).send();
         }
         return;
       }
@@ -332,6 +334,8 @@ export class ItemRouter<
         );
         if (result != null) {
           res.json(result);
+        } else {
+          res.status(204).send();
         }
         return;
       }
@@ -374,6 +378,8 @@ export class ItemRouter<
         );
         if (result != null) {
           res.json(result);
+        } else {
+          res.status(204).send();
         }
         return;
       }
@@ -415,6 +421,8 @@ export class ItemRouter<
         );
         if (result != null) {
           res.json(result);
+        } else {
+          res.status(204).send();
         }
         return;
       }

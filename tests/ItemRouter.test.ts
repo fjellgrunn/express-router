@@ -17,6 +17,7 @@ interface Response {
   locals: Record<string, any>;
   json: (data: any) => void;
   status: (code: number) => Response;
+  send: () => void;
 }
 
 function Router(): any {
@@ -186,7 +187,8 @@ describe("ItemRouter", () => {
     res = {
       locals: {},
       json: vi.fn(),
-      status: vi.fn().mockReturnThis()
+      status: vi.fn().mockReturnThis(),
+      send: vi.fn()
     };
   });
 
@@ -940,7 +942,7 @@ describe("ItemRouter", () => {
       expect(res.json).toHaveBeenCalledWith(error);
     });
 
-    it('should not return response when router-level handler returns null', async () => {
+    it('should return 204 when router-level handler returns null', async () => {
       const routerOptions: ItemRouterOptions<"test", "container"> = {
         actions: {
           nullAction: vi.fn().mockResolvedValue(null)
@@ -956,9 +958,11 @@ describe("ItemRouter", () => {
 
       expect(routerOptions.actions?.nullAction).toHaveBeenCalled();
       expect(res.json).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(204);
+      expect(res.send).toHaveBeenCalled();
     });
 
-    it('should not return response when router-level facet returns null', async () => {
+    it('should return 204 when router-level facet returns null', async () => {
       const routerOptions: ItemRouterOptions<"test", "container"> = {
         facets: {
           nullFacet: vi.fn().mockResolvedValue(null)
@@ -974,6 +978,46 @@ describe("ItemRouter", () => {
 
       expect(routerOptions.facets?.nullFacet).toHaveBeenCalled();
       expect(res.json).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(204);
+      expect(res.send).toHaveBeenCalled();
+    });
+
+    it('should return 204 when router-level allAction returns null', async () => {
+      const routerOptions: ItemRouterOptions<"test", "container"> = {
+        allActions: {
+          nullAllAction: vi.fn().mockResolvedValue(null)
+        }
+      };
+
+      const routerWithNullAllAction = new TestItemRouter(lib, "test", routerOptions);
+      // @ts-ignore
+      req.path = '/test/nullAllAction';
+
+      await routerWithNullAllAction['postAllAction'](req as Request, res as Response);
+
+      expect(routerOptions.allActions?.nullAllAction).toHaveBeenCalled();
+      expect(res.json).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(204);
+      expect(res.send).toHaveBeenCalled();
+    });
+
+    it('should return 204 when router-level allFacet returns null', async () => {
+      const routerOptions: ItemRouterOptions<"test", "container"> = {
+        allFacets: {
+          nullAllFacet: vi.fn().mockResolvedValue(null)
+        }
+      };
+
+      const routerWithNullAllFacet = new TestItemRouter(lib, "test", routerOptions);
+      // @ts-ignore
+      req.path = '/test/nullAllFacet';
+
+      await routerWithNullAllFacet['getAllFacet'](req as Request, res as Response);
+
+      expect(routerOptions.allFacets?.nullAllFacet).toHaveBeenCalled();
+      expect(res.json).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(204);
+      expect(res.send).toHaveBeenCalled();
     });
   });
 

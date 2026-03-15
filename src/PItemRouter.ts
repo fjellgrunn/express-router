@@ -104,6 +104,17 @@ export class PItemRouter<T extends Item<S>, S extends string> extends ItemRouter
     this.logger.default('Finding Items', { query: req.query, params: req.params, locals: res.locals });
 
     try {
+      const parsePaginationParam = (value: unknown): number | undefined => {
+        if (typeof value !== 'string' || value.trim().length === 0) {
+          return void 0;
+        }
+        const parsed = parseInt(value, 10);
+        if (Number.isNaN(parsed) || parsed < 0) {
+          return void 0;
+        }
+        return parsed;
+      };
+
       const query: ParsedQuery = req.query as unknown as ParsedQuery;
       const finder = query['finder'] as string;
       const finderParams = query['finderParams'] as string;
@@ -126,8 +137,8 @@ export class PItemRouter<T extends Item<S>, S extends string> extends ItemRouter
         // Parse pagination options from query parameters
         const findOptions: FindOptions | undefined =
           (req.query.limit || req.query.offset) ? {
-            ...(req.query.limit && { limit: parseInt(req.query.limit as string, 10) }),
-            ...(req.query.offset && { offset: parseInt(req.query.offset as string, 10) }),
+            ...(parsePaginationParam(req.query.limit) !== void 0 && { limit: parsePaginationParam(req.query.limit) }),
+            ...(parsePaginationParam(req.query.offset) !== void 0 && { offset: parsePaginationParam(req.query.offset) }),
           } : (void 0);
 
         if (one === 'true') {
@@ -198,11 +209,13 @@ export class PItemRouter<T extends Item<S>, S extends string> extends ItemRouter
 
         // Parse pagination options from query params
         const allOptions: AllOptions = {};
-        if (req.query.limit) {
-          allOptions.limit = parseInt(req.query.limit as string, 10);
+        const parsedLimit = parsePaginationParam(req.query.limit);
+        if (parsedLimit !== void 0) {
+          allOptions.limit = parsedLimit;
         }
-        if (req.query.offset) {
-          allOptions.offset = parseInt(req.query.offset as string, 10);
+        const parsedOffset = parsePaginationParam(req.query.offset);
+        if (parsedOffset !== void 0) {
+          allOptions.offset = parsedOffset;
         }
 
         // libOperations.all() now returns AllOperationResult<V>
