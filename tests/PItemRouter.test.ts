@@ -415,6 +415,40 @@ describe("PItemRouter", () => {
       expect(res.json).toHaveBeenCalledWith(mockResult);
     });
 
+    it('should ignore invalid pagination values for finder options', async () => {
+      const mockItems = [testItem];
+      mockLib.operations.find.mockResolvedValue({
+        items: mockItems,
+        metadata: { total: mockItems.length, returned: mockItems.length, offset: 0, hasMore: false }
+      });
+      req.query = {
+        finder: 'testFinder',
+        finderParams: JSON.stringify({ param: 'value' }),
+        limit: 'abc',
+        offset: '-2'
+      };
+
+      await router['findItems'](req as Request, res as Response);
+
+      expect(mockLib.operations.find).toHaveBeenCalledWith('testFinder', { param: 'value' }, [], {});
+    });
+
+    it('should ignore invalid pagination values for all query options', async () => {
+      const mockResult = {
+        items: [testItem],
+        metadata: { total: 1, returned: 1, offset: 0, hasMore: false }
+      };
+      mockLib.operations.all.mockResolvedValue(mockResult);
+      req.query = {
+        limit: 'abc',
+        offset: '-10'
+      };
+
+      await router['findItems'](req as Request, res as Response);
+
+      expect(mockLib.operations.all).toHaveBeenCalledWith(expect.any(Object), [], {});
+    });
+
     it('should handle findOne returning undefined when one=true', async () => {
       mockLib.findOne.mockResolvedValue(null);
       req.query = {
