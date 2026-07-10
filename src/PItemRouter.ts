@@ -4,6 +4,11 @@ import { validatePK } from "@fjell/validation";
 import { Request, Response } from "express";
 import { ItemRouter, ItemRouterOptions } from "./ItemRouter.js";
 import { Library, NotFoundError } from "@fjell/lib";
+import {
+  resolvePagination,
+  resolveQueryLimits,
+  stripQueryMetaParams,
+} from "./util/queryPagination.js";
 
 interface ParsedQuery {
   [key: string]: undefined | string | string[] | ParsedQuery | ParsedQuery[];
@@ -104,21 +109,20 @@ export class PItemRouter<T extends Item<S>, S extends string> extends ItemRouter
     this.logger.default('Finding Items', { query: req.query, params: req.params, locals: res.locals });
 
     try {
-      const parsePaginationParam = (value: unknown): number | undefined => {
-        if (typeof value !== 'string' || value.trim().length === 0) {
-          return void 0;
-        }
-        const parsed = parseInt(value, 10);
-        if (Number.isNaN(parsed) || parsed < 0) {
-          return void 0;
-        }
-        return parsed;
-      };
-
       const query: ParsedQuery = req.query as unknown as ParsedQuery;
       const finder = query['finder'] as string;
       const finderParams = query['finderParams'] as string;
       const one = query['one'] as string;
+      const queryLimits = resolveQueryLimits(this.options.queryLimits);
+
+      const pagination = resolvePagination(req.query.limit, req.query.offset, queryLimits);
+      if (!pagination.ok) {
+        res.status(400).json({
+          error: pagination.error,
+          field: pagination.field,
+        });
+        return;
+      }
 
       if (finder) {
         this.logger.default('Finding Items with Finder %s %j one:%s', finder, finderParams, one);
@@ -134,16 +138,13 @@ export class PItemRouter<T extends Item<S>, S extends string> extends ItemRouter
           return;
         }
 
-        // Parse pagination options from query parameters
-        const findOptions: FindOptions | undefined =
-          (req.query.limit || req.query.offset) ? {
-            ...(parsePaginationParam(req.query.limit) !== void 0 && { limit: parsePaginationParam(req.query.limit) }),
-            ...(parsePaginationParam(req.query.offset) !== void 0 && { offset: parsePaginationParam(req.query.offset) }),
-          } : (void 0);
+        const findOptions: FindOptions = {
+          limit: pagination.limit,
+          offset: pagination.offset,
+        };
 
         if (one === 'true') {
           const item = await (this.lib as any).findOne(finder, parsedParams);
-          // Wrap findOne result in FindOperationResult format
           const validatedItem = item ? (validatePK(item, this.getPkType()) as Item<S>) : null;
           const result: FindOperationResult<Item<S>> = {
             items: validatedItem ? [validatedItem] : [],
@@ -156,159 +157,62 @@ export class PItemRouter<T extends Item<S>, S extends string> extends ItemRouter
           };
           res.json(result);
         } else {
-
-          let result: FindOperationResult<Item<S>>;
-          try {
-            result = await libOperations.find(finder, parsedParams, [], findOptions);
-          } catch (findError: any) {
-            console.error('=== ERROR IN libOperations.find ===');
-            console.error('Error:', findError);
-            console.error('Error Message:', findError?.message);
-            console.error('Error Stack:', findError?.stack);
-            this.logger.error('Error calling libOperations.find', {
-              finder,
-              parsedParams,
-              findOptions,
-              errorMessage: findError?.message,
-              errorName: findError?.name,
-              errorStack: findError?.stack,
-              errorCause: findError?.cause
-            });
-            throw findError;
-          }
-
-          let validatedItems: Item<S>[];
-          try {
-            validatedItems = validatePK(result.items, this.getPkType()) as Item<S>[];
-          } catch (validationError: any) {
-            console.error('=== ERROR IN VALIDATION ===');
-            console.error('Validation Error:', validationError);
-            console.error('Error Message:', validationError?.message);
-            console.error('Error Stack:', validationError?.stack);
-            this.logger.error('Error validating items from find result', {
-              finder,
-              itemCount: result.items?.length,
-              firstItem: result.items?.[0],
-              errorMessage: validationError?.message,
-              errorName: validationError?.name,
-              errorStack: validationError?.stack
-            });
-            throw validationError;
-          }
+          const result = await libOperations.find(finder, parsedParams, [], findOptions);
+          const validatedItems = validatePK(result.items, this.getPkType()) as Item<S>[];
 
           res.json({
             items: validatedItems,
             metadata: result.metadata
           });
-
         }
       } else {
-        // TODO: This is once of the more important places to perform some validaation and feedback
-        const itemQuery: ItemQuery = paramsToQuery(req.query as QueryParams);
+        // Strip pagination/finder meta keys so they don't pollute ItemQuery (e.g. limit: NaN)
+        let itemQuery: ItemQuery;
+        try {
+          itemQuery = paramsToQuery(stripQueryMetaParams(req.query as Record<string, unknown>) as QueryParams);
+        } catch (parseError: any) {
+          res.status(400).json({
+            error: 'Invalid query parameter',
+            message: parseError?.message || 'Failed to parse query parameters',
+          });
+          return;
+        }
         this.logger.default('Finding Items with a query %j', itemQuery);
 
-        // Parse pagination options from query params
-        const allOptions: AllOptions = {};
-        const parsedLimit = parsePaginationParam(req.query.limit);
-        if (parsedLimit !== void 0) {
-          allOptions.limit = parsedLimit;
-        }
-        const parsedOffset = parsePaginationParam(req.query.offset);
-        if (parsedOffset !== void 0) {
-          allOptions.offset = parsedOffset;
-        }
+        const allOptions: AllOptions = {
+          limit: pagination.limit,
+          offset: pagination.offset,
+        };
 
-        // libOperations.all() now returns AllOperationResult<V>
         const result = await libOperations.all(itemQuery, [], allOptions);
-
-        // Validate PKs on returned items
         const validatedItems = result.items.map((item: Item<S>) => validatePK(item, this.getPkType()));
 
-        // Return full AllOperationResult structure with validated items
         res.json({
           items: validatedItems,
           metadata: result.metadata
         });
       }
     } catch (error: any) {
-      // Enhanced error logging to capture the actual error details
-      const originalError = error?.cause || error;
-      const errorMessage = error?.message || originalError?.message || String(error) || 'Internal server error';
-      // Extract all error properties that can be serialized
-      const errorProps: Record<string, any> = {};
-      if (error) {
-        Object.getOwnPropertyNames(error).forEach(key => {
-          try {
-            const value = (error as any)[key];
-            // Only include serializable values
-            if (typeof value !== 'function' && typeof value !== 'object') {
-              errorProps[key] = value;
-            } else if (key === 'stack' || key === 'message' || key === 'cause') {
-              errorProps[key] = value;
-            }
-          } catch {
-            // Skip properties that can't be accessed
-          }
-        });
-      }
+      const errorMessage = error?.message || String(error) || 'Internal server error';
 
-      const errorDetails = {
-        errorMessage,
-        errorName: error?.name || originalError?.name,
-        errorCode: error?.code || originalError?.code,
-        errorStack: error?.stack || originalError?.stack,
-        errorString: String(error),
-        errorType: error?.constructor?.name,
-        errorProps,
-        errorCause: error?.cause ? {
-          message: error.cause?.message,
-          name: error.cause?.name,
-          stack: error.cause?.stack
-        } : void 0,
-        finder: (req.query as any)?.finder,
-        finderParams: (req.query as any)?.finderParams,
-        requestPath: req.path,
-        requestMethod: req.method
-      };
-
-      // Log with multiple levels to ensure we see it
-      // Serialize error properly - errors don't serialize well, so log each property separately
-      console.error('=== ERROR IN findItems ===');
-      console.error('Error object:', error);
-      console.error('Error message:', errorMessage);
-      console.error('Error name:', error?.name);
-      console.error('Error code:', error?.code);
-      console.error('Error stack:', error?.stack);
-      console.error('Error cause:', error?.cause);
-      console.error('Error string:', String(error));
-      console.error('Full error details:', JSON.stringify(errorDetails, null, 2));
-      console.error('=== END ERROR ===\n\n');
-
-      // Log to structured logger with serializable data only (don't pass errorDetails directly)
       this.logger.error('Error in findItems', {
         errorMessage,
-        errorName: errorDetails.errorName,
-        errorCode: errorDetails.errorCode,
-        errorStack: errorDetails.errorStack,
-        errorType: errorDetails.errorType,
-        errorProps: errorDetails.errorProps,
-        errorCause: errorDetails.errorCause,
-        finder: errorDetails.finder,
-        finderParams: errorDetails.finderParams,
-        requestPath: errorDetails.requestPath,
-        requestMethod: errorDetails.requestMethod
+        errorName: error?.name,
+        errorCode: error?.code,
+        finder: (req.query as any)?.finder,
+        requestPath: req.path,
+        requestMethod: req.method
       });
 
       if (error instanceof NotFoundError || error?.name === 'NotFoundError') {
         res.status(404).json({ error: errorMessage });
       } else {
-        // Include more details in development, but keep it generic in production
         const isDevelopment = process.env.NODE_ENV === 'development';
         res.status(500).json({
           error: errorMessage,
           ...(isDevelopment && {
-            details: errorDetails.errorName,
-            stack: errorDetails.errorStack
+            details: error?.name,
+            stack: error?.stack
           })
         });
       }

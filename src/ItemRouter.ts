@@ -195,6 +195,16 @@ export type ItemRouterOptions<
    * Error handler configuration
    */
   errorHandler?: ErrorHandlerOptions;
+
+  /**
+   * Default and maximum row limits for list / finder / all queries.
+   * Prevents unbounded full-table scans when clients omit or inflate `limit`.
+   * Defaults: defaultLimit=100, maxLimit=100.
+   */
+  queryLimits?: {
+    defaultLimit?: number;
+    maxLimit?: number;
+  };
 };
 
 export class ItemRouter<
@@ -313,7 +323,7 @@ export class ItemRouter<
       if ((error.name === 'ValidationError' || error.message?.includes('not found')) && error.message) {
         res.status(500).json({ error: 'All Action is not configured' });
       } else {
-        res.status(500).json(error);
+        res.status(500).json({ error: error?.message || 'Internal server error' });
       }
     }
   }
@@ -346,9 +356,9 @@ export class ItemRouter<
         return;
       }
 
-      // Fallback to library handler
-      const combinedQueryParams = { ...(req.query || {}), ...(req.params || {}) } as Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>>;
-      const result = await libOperations.allFacet(facetKey, combinedQueryParams, this.getLocations(res));
+      // Pass query params only — route params (PKs) are already resolved via locations
+      const queryParams = (req.query || {}) as Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>>;
+      const result = await libOperations.allFacet(facetKey, queryParams, this.getLocations(res));
       res.json(result);
     } catch (error: any) {
       this.logger.error('Error in getAllFacet', extractErrorDetails(error));
@@ -356,7 +366,7 @@ export class ItemRouter<
       if ((error.name === 'ValidationError' || error.message?.includes('not found')) && error.message) {
         res.status(500).json({ error: 'All Facet is not configured' });
       } else {
-        res.status(500).json(error);
+        res.status(500).json({ error: error?.message || 'Internal server error' });
       }
     }
   }
@@ -399,7 +409,7 @@ export class ItemRouter<
       if ((error.name === 'ValidationError' || error.message?.includes('not found')) && error.message) {
         res.status(500).json({ error: 'Item Action is not configured' });
       } else {
-        res.status(500).json(error);
+        res.status(500).json({ error: error?.message || 'Internal server error' });
       }
     }
   }
@@ -433,9 +443,9 @@ export class ItemRouter<
         return;
       }
 
-      // Fallback to library handler
-      const combinedQueryParams = { ...(req.query || {}), ...(req.params || {}) } as Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>>;
-      const result = await libOperations.facet(ik, facetKey, combinedQueryParams);
+      // Fallback to library handler — pass query params only (item key already resolved)
+      const queryParams = (req.query || {}) as Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>>;
+      const result = await libOperations.facet(ik, facetKey, queryParams);
       res.json(result);
     } catch (error: any) {
       this.logger.error('Error in getItemFacet', extractErrorDetails(error));
@@ -443,7 +453,7 @@ export class ItemRouter<
       if ((error.name === 'ValidationError' || error.message?.includes('not found')) && error.message) {
         res.status(500).json({ error: 'Item Facet is not configured' });
       } else {
-        res.status(500).json(error);
+        res.status(500).json({ error: error?.message || 'Internal server error' });
       }
     }
   }

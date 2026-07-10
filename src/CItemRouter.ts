@@ -6,6 +6,11 @@ import { validatePK } from "@fjell/validation";
 import { Library, NotFoundError } from "@fjell/lib";
 import { Request, Response } from "express";
 import { ItemRouter, ItemRouterOptions } from "./ItemRouter.js";
+import {
+  resolvePagination,
+  resolveQueryLimits,
+  stripQueryMetaParams,
+} from "./util/queryPagination.js";
 
 /**
  * Extract serializable error details from Error objects
@@ -180,19 +185,17 @@ export class CItemRouter<
     const one = query['one'] as string;
 
     try {
-      const parsePaginationParam = (value: unknown): number | undefined => {
-        if (typeof value !== 'string' || value.trim().length === 0) {
-          return void 0;
-        }
-        const parsed = parseInt(value, 10);
-        if (Number.isNaN(parsed) || parsed < 0) {
-          return void 0;
-        }
-        return parsed;
-      };
+      const queryLimits = resolveQueryLimits(this.options.queryLimits);
+      const pagination = resolvePagination(req.query.limit, req.query.offset, queryLimits);
+      if (!pagination.ok) {
+        res.status(400).json({
+          error: pagination.error,
+          field: pagination.field,
+        });
+        return;
+      }
 
       if (finder) {
-        // If finder is defined?  Call a finder.
         this.logger.default('Finding Items with Finder', { finder, finderParams, one });
 
         let parsedParams: any;
@@ -206,18 +209,15 @@ export class CItemRouter<
           return;
         }
 
-        // Parse pagination options from query parameters
-        const findOptions: FindOptions | undefined =
-          (req.query.limit || req.query.offset) ? {
-            ...(parsePaginationParam(req.query.limit) !== void 0 && { limit: parsePaginationParam(req.query.limit) }),
-            ...(parsePaginationParam(req.query.offset) !== void 0 && { offset: parsePaginationParam(req.query.offset) }),
-          } : (void 0);
+        const findOptions: FindOptions = {
+          limit: pagination.limit,
+          offset: pagination.offset,
+        };
 
         const locations = this.getLocations(res);
 
         if (one === 'true') {
           const item = await (this.lib as any).findOne(finder, parsedParams, locations);
-          // Wrap findOne result in FindOperationResult format
           const validatedItem = item ? (validatePK(item, this.getPkType()) as Item<S, L1, L2, L3, L4, L5>) : null;
           const result: FindOperationResult<Item<S, L1, L2, L3, L4, L5>> = {
             items: validatedItem ? [validatedItem] : [],
@@ -230,10 +230,7 @@ export class CItemRouter<
           };
           res.json(result);
         } else {
-          // Call find() with pagination options - it returns FindOperationResult
           const result = await libOperations.find(finder, parsedParams, locations, findOptions);
-
-          // Validate items - validatePK can handle arrays
           const validatedItems = validatePK(result.items, this.getPkType()) as Item<S, L1, L2, L3, L4, L5>[];
 
           res.json({
@@ -242,31 +239,30 @@ export class CItemRouter<
           });
         }
       } else {
-        // TODO: This is once of the more important places to perform some validaation and feedback
-        const itemQuery: ItemQuery = paramsToQuery(req.query as QueryParams);
+        let itemQuery: ItemQuery;
+        try {
+          itemQuery = paramsToQuery(stripQueryMetaParams(req.query as Record<string, unknown>) as QueryParams);
+        } catch (parseError: any) {
+          res.status(400).json({
+            error: 'Invalid query parameter',
+            message: parseError?.message || 'Failed to parse query parameters',
+          });
+          return;
+        }
         const locations = this.getLocations(res);
         this.logger.debug('Finding Items with Query: %j', itemQuery);
         this.logger.debug('Location keys being passed: %j', locations);
 
-        // Parse pagination options from query params
-        const allOptions: AllOptions = {};
-        const parsedLimit = parsePaginationParam(req.query.limit);
-        if (parsedLimit !== void 0) {
-          allOptions.limit = parsedLimit;
-        }
-        const parsedOffset = parsePaginationParam(req.query.offset);
-        if (parsedOffset !== void 0) {
-          allOptions.offset = parsedOffset;
-        }
+        const allOptions: AllOptions = {
+          limit: pagination.limit,
+          offset: pagination.offset,
+        };
 
-        // libOperations.all() now returns AllOperationResult<V>
         const result = await libOperations.all(itemQuery, locations, allOptions);
         this.logger.debug('Found %d Items with Query', result.items.length);
 
-        // Validate PKs on returned items
         const validatedItems = result.items.map((item: Item<S, L1, L2, L3, L4, L5>) => validatePK(item, this.getPkType()));
 
-        // Return full AllOperationResult structure with validated items
         res.json({
           items: validatedItems,
           metadata: result.metadata

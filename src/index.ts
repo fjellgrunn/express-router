@@ -12,5 +12,8 @@ export * from './errorHandler.js';
 export * from './types.js';
 export * from './createApp.js';
 
+// Query pagination helpers
+export * from './util/queryPagination.js';
+
 // Re-export Operations type from @fjell/lib for convenience
 export type { Operations } from '@fjell/lib';
