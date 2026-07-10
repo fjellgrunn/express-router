@@ -4,10 +4,65 @@ import LibLogger from './logger.js';
 
 const logger = LibLogger.get('express-router', 'errorHandler');
 
+const SENSITIVE_HEADER_NAMES = new Set([
+  'authorization',
+  'cookie',
+  'set-cookie',
+  'x-api-key',
+  'x-auth-token',
+  'proxy-authorization',
+]);
+
+const SENSITIVE_PARAM_KEYS = new Set([
+  'password',
+  'passwd',
+  'secret',
+  'token',
+  'access_token',
+  'refresh_token',
+  'api_key',
+  'apikey',
+  'authorization',
+  'cookie',
+]);
+
 export interface ErrorHandlerOptions {
   includeStackTrace?: boolean;
   logErrors?: boolean;
+  /** When true, include request body in error logs (default: false). */
+  logRequestBody?: boolean;
+  /** When true, include raw (unredacted) headers in error logs (default: false). */
+  logRawHeaders?: boolean;
   customErrorMapper?: (error: any) => ErrorInfo | null;
+}
+
+function redactHeaders(headers: Request['headers']): Record<string, unknown> {
+  const redacted: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(headers || {})) {
+    if (SENSITIVE_HEADER_NAMES.has(key.toLowerCase())) {
+      redacted[key] = '[REDACTED]';
+    } else {
+      redacted[key] = value;
+    }
+  }
+  return redacted;
+}
+
+function redactParams(params: unknown): unknown {
+  if (params == null || typeof params !== 'object' || Array.isArray(params)) {
+    return params;
+  }
+  const redacted: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(params as Record<string, unknown>)) {
+    if (SENSITIVE_PARAM_KEYS.has(key.toLowerCase())) {
+      redacted[key] = '[REDACTED]';
+    } else if (value && typeof value === 'object' && !Array.isArray(value)) {
+      redacted[key] = redactParams(value);
+    } else {
+      redacted[key] = value;
+    }
+  }
+  return redacted;
 }
 
 export class FjellErrorHandler {
@@ -15,6 +70,8 @@ export class FjellErrorHandler {
     this.options = {
       includeStackTrace: process.env.NODE_ENV === 'development',
       logErrors: true,
+      logRequestBody: false,
+      logRawHeaders: false,
       ...options
     };
   }
@@ -36,6 +93,14 @@ export class FjellErrorHandler {
     };
 
     return statusMap[code] || 500;
+  }
+
+  private getSafeOperationParams(req: Request): Record<string, unknown> {
+    return redactParams({
+      ...req.query,
+      ...req.params,
+      ...(this.options.logRequestBody ? req.body : {}),
+    }) as Record<string, unknown>;
   }
 
   /**
@@ -68,7 +133,7 @@ export class FjellErrorHandler {
         operation: {
           type: this.getOperationTypeFromRequest(req),
           name: req.path,
-          params: { ...req.body, ...req.query, ...req.params }
+          params: this.getSafeOperationParams(req)
         },
         context: {
           itemType: this.extractItemType(req.path)
@@ -97,7 +162,7 @@ export class FjellErrorHandler {
       operation: {
         type: this.getOperationTypeFromRequest(req),
         name: req.path,
-        params: { ...req.body, ...req.query, ...req.params }
+        params: this.getSafeOperationParams(req)
       },
       context: {
         itemType: this.extractItemType(req.path)
@@ -234,6 +299,17 @@ export class FjellErrorHandler {
 
     // Log the error if configured - structured for agentic debugging
     if (this.options.logErrors) {
+      const requestLog: Record<string, unknown> = {
+        method: req.method,
+        path: req.path,
+        headers: this.options.logRawHeaders ? req.headers : redactHeaders(req.headers),
+        query: redactParams(req.query),
+        params: redactParams(req.params),
+      };
+      if (this.options.logRequestBody) {
+        requestLog.body = redactParams(req.body);
+      }
+
       logger.error('HTTP request error', {
         component: 'FjellErrorHandler',
         operation: 'handle',
@@ -249,14 +325,7 @@ export class FjellErrorHandler {
         validOptions: errorInfo.details?.validOptions,
         suggestedAction: errorInfo.details?.suggestedAction,
         retryable: errorInfo.details?.retryable,
-        request: {
-          method: req.method,
-          path: req.path,
-          headers: req.headers,
-          body: req.body,
-          query: req.query,
-          params: req.params
-        },
+        request: requestLog,
         suggestion: errorInfo.details?.suggestedAction || 'Check request parameters, authentication, and data validation',
         errorInfo
       });
@@ -277,4 +346,3 @@ export function createErrorHandler(options?: ErrorHandlerOptions) {
   const handler = new FjellErrorHandler(options);
   return handler.handle;
 }
-

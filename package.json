@@ -40,27 +40,39 @@
     "@fjell/registry": "^4.4.86",
     "@fjell/validation": "^4.4.6",
     "deepmerge": "^4.3.1",
-    "express": "^5.1.0"
+    "express": "^5.2.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
-    "@eslint/js": "^9.38.0",
+    "@eslint/js": "^9.39.4",
     "@fjell/common-config": "^1.1.38",
     "@tsconfig/recommended": "^1.0.10",
-    "@types/express": "^5.0.3",
-    "@types/node": "^24.9.1",
-    "@typescript-eslint/eslint-plugin": "^8.46.2",
-    "@typescript-eslint/parser": "^8.46.2",
-    "@vitest/coverage-v8": "^4.0.2",
+    "@types/express": "^5.0.6",
+    "@types/node": "^24.13.3",
+    "@typescript-eslint/eslint-plugin": "^8.63.0",
+    "@typescript-eslint/parser": "^8.63.0",
+    "@vitest/coverage-v8": "^4.1.10",
     "esbuild": "0.25.11",
-    "eslint": "^9.38.0",
+    "eslint": "^9.39.4",
     "nodemon": "^3.1.10",
     "supertest": "^7.1.4",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.2"
+    "vitest": "^4.1.10"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/fjellgrunn/express-router.git"
-  }
+  },
+  "bugs": {
+    "url": "https://github.com/fjellgrunn/express-router/issues"
+  },
+  "homepage": "https://github.com/fjellgrunn/express-router#readme",
+  "author": "Fjell Team",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md",
+    "guide"
+  ]
 }
