@@ -17,6 +17,7 @@ interface Response {
   locals: Record<string, any>;
   json: (data: any) => void;
   status: (code: number) => Response;
+  send: () => void;
 }
 
 function Router(): any {
@@ -186,7 +187,8 @@ describe("ItemRouter", () => {
     res = {
       locals: {},
       json: vi.fn(),
-      status: vi.fn().mockReturnThis()
+      status: vi.fn().mockReturnThis(),
+      send: vi.fn()
     };
   });
 
@@ -489,7 +491,7 @@ describe("ItemRouter", () => {
       req.path = '/test/123/customAction';
       await router['postItemAction'](req as Request, res as Response);
       expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveBeenCalledWith(error);
+      expect(res.json).toHaveBeenCalledWith({ error: error.message });
     });
   });
 
@@ -500,7 +502,7 @@ describe("ItemRouter", () => {
       // @ts-ignore
       req.path = '/test/123/customFacet';
       await router['getItemFacet'](req as Request, res as Response);
-      expect(lib.operations.facet).toHaveBeenCalledWith(comKey, 'customFacet', req.params);
+      expect(lib.operations.facet).toHaveBeenCalledWith(comKey, 'customFacet', req.query);
       expect(res.json).toHaveBeenCalledWith({ facet: "customFacet", item: testItem });
     });
 
@@ -530,7 +532,7 @@ describe("ItemRouter", () => {
       req.path = '/test/123/customFacet';
       await router['getItemFacet'](req as Request, res as Response);
       expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveBeenCalledWith(error);
+      expect(res.json).toHaveBeenCalledWith({ error: error.message });
     });
   });
 
@@ -605,7 +607,7 @@ describe("ItemRouter", () => {
       req.path = '/test/customAllAction';
       await router['postAllAction'](req as Request, res as Response);
       expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveBeenCalledWith(error);
+      expect(res.json).toHaveBeenCalledWith({ error: error.message });
     });
 
     it('should extract action key correctly from different path formats', async () => {
@@ -632,7 +634,7 @@ describe("ItemRouter", () => {
       // @ts-ignore
       req.path = '/test/customAllFacet';
       await router['getAllFacet'](req as Request, res as Response);
-      expect(lib.operations.allFacet).toHaveBeenCalledWith('customAllFacet', { ...req.query, ...req.params }, locKeyArray);
+      expect(lib.operations.allFacet).toHaveBeenCalledWith('customAllFacet', { ...req.query }, locKeyArray);
       expect(res.json).toHaveBeenCalledWith({ facet: "customAllFacet", data: testItem });
     });
 
@@ -668,25 +670,7 @@ describe("ItemRouter", () => {
       req.path = '/test/customAllFacet';
       await router['getAllFacet'](req as Request, res as Response);
       expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveBeenCalledWith(error);
-    });
-
-    it('should extract facet key correctly from different path formats', async () => {
-      const testCases = [
-        '/test/facet1',
-        '/test/deep/path/facet2',
-        '/facet3'
-      ];
-
-      for (const path of testCases) {
-        const expectedFacetKey = path.substring(path.lastIndexOf('/') + 1);
-        // @ts-ignore
-        req.path = path;
-        await router['getAllFacet'](req as Request, res as Response);
-        if (expectedFacetKey === 'customAllFacet') {
-          expect(lib.operations.allFacet).toHaveBeenCalledWith(expectedFacetKey, { ...req.query, ...req.params });
-        }
-      }
+      expect(res.json).toHaveBeenCalledWith({ error: "Database error" });
     });
 
     it('should handle empty query and params correctly', async () => {
@@ -698,13 +682,13 @@ describe("ItemRouter", () => {
       expect(lib.operations.allFacet).toHaveBeenCalledWith('customAllFacet', {}, locKeyArray);
     });
 
-    it('should combine query and params with params overriding query', async () => {
+    it('should pass query params only (not route params) to library allFacet', async () => {
       req.query = { a: '1', b: '2' };
       req.params = { b: '3', c: '4' };
       // @ts-ignore
       req.path = '/test/customAllFacet';
       await router['getAllFacet'](req as Request, res as Response);
-      expect(lib.operations.allFacet).toHaveBeenCalledWith('customAllFacet', { a: '1', b: '3', c: '4' }, locKeyArray);
+      expect(lib.operations.allFacet).toHaveBeenCalledWith('customAllFacet', { a: '1', b: '2' }, locKeyArray);
     });
   });
 
@@ -882,7 +866,7 @@ describe("ItemRouter", () => {
       await routerWithFailingAction['postItemAction'](req as Request, res as Response);
 
       expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveBeenCalledWith(error);
+      expect(res.json).toHaveBeenCalledWith({ error: error.message });
     });
 
     it('should handle errors thrown by router-level facet handlers', async () => {
@@ -901,7 +885,7 @@ describe("ItemRouter", () => {
       await routerWithFailingFacet['getItemFacet'](req as Request, res as Response);
 
       expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveBeenCalledWith(error);
+      expect(res.json).toHaveBeenCalledWith({ error: error.message });
     });
 
     it('should handle errors thrown by router-level allAction handlers', async () => {
@@ -919,7 +903,7 @@ describe("ItemRouter", () => {
       await routerWithFailingAllAction['postAllAction'](req as Request, res as Response);
 
       expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveBeenCalledWith(error);
+      expect(res.json).toHaveBeenCalledWith({ error: error.message });
     });
 
     it('should handle errors thrown by router-level allFacet handlers', async () => {
@@ -937,10 +921,10 @@ describe("ItemRouter", () => {
       await routerWithFailingAllFacet['getAllFacet'](req as Request, res as Response);
 
       expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveBeenCalledWith(error);
+      expect(res.json).toHaveBeenCalledWith({ error: error.message });
     });
 
-    it('should not return response when router-level handler returns null', async () => {
+    it('should return 204 when router-level handler returns null', async () => {
       const routerOptions: ItemRouterOptions<"test", "container"> = {
         actions: {
           nullAction: vi.fn().mockResolvedValue(null)
@@ -956,9 +940,11 @@ describe("ItemRouter", () => {
 
       expect(routerOptions.actions?.nullAction).toHaveBeenCalled();
       expect(res.json).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(204);
+      expect(res.send).toHaveBeenCalled();
     });
 
-    it('should not return response when router-level facet returns null', async () => {
+    it('should return 204 when router-level facet returns null', async () => {
       const routerOptions: ItemRouterOptions<"test", "container"> = {
         facets: {
           nullFacet: vi.fn().mockResolvedValue(null)
@@ -974,6 +960,46 @@ describe("ItemRouter", () => {
 
       expect(routerOptions.facets?.nullFacet).toHaveBeenCalled();
       expect(res.json).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(204);
+      expect(res.send).toHaveBeenCalled();
+    });
+
+    it('should return 204 when router-level allAction returns null', async () => {
+      const routerOptions: ItemRouterOptions<"test", "container"> = {
+        allActions: {
+          nullAllAction: vi.fn().mockResolvedValue(null)
+        }
+      };
+
+      const routerWithNullAllAction = new TestItemRouter(lib, "test", routerOptions);
+      // @ts-ignore
+      req.path = '/test/nullAllAction';
+
+      await routerWithNullAllAction['postAllAction'](req as Request, res as Response);
+
+      expect(routerOptions.allActions?.nullAllAction).toHaveBeenCalled();
+      expect(res.json).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(204);
+      expect(res.send).toHaveBeenCalled();
+    });
+
+    it('should return 204 when router-level allFacet returns null', async () => {
+      const routerOptions: ItemRouterOptions<"test", "container"> = {
+        allFacets: {
+          nullAllFacet: vi.fn().mockResolvedValue(null)
+        }
+      };
+
+      const routerWithNullAllFacet = new TestItemRouter(lib, "test", routerOptions);
+      // @ts-ignore
+      req.path = '/test/nullAllFacet';
+
+      await routerWithNullAllFacet['getAllFacet'](req as Request, res as Response);
+
+      expect(routerOptions.allFacets?.nullAllFacet).toHaveBeenCalled();
+      expect(res.json).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(204);
+      expect(res.send).toHaveBeenCalled();
     });
   });
 
@@ -1096,7 +1122,7 @@ describe("ItemRouter", () => {
       expect(lib.operations.facet).toHaveBeenCalledWith(
         comKey,
         'customFacet',
-        { ...req.query, ...req.params }
+        { ...req.query }
       );
     });
 

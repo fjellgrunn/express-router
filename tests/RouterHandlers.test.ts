@@ -444,7 +444,7 @@ describe('Router Handlers', () => {
       await userRouter['postItemAction'](req, mockRes as Response);
 
       expect(mockRes.status).toHaveBeenCalledWith(500);
-      expect(mockRes.json).toHaveBeenCalledWith(error);
+      expect(mockRes.json).toHaveBeenCalledWith({ error: 'Router action error' });
     });
 
     it('should handle errors in router-level facet handlers', async () => {
@@ -456,7 +456,7 @@ describe('Router Handlers', () => {
       await userRouter['getItemFacet'](req, mockRes as Response);
 
       expect(mockRes.status).toHaveBeenCalledWith(500);
-      expect(mockRes.json).toHaveBeenCalledWith(error);
+      expect(mockRes.json).toHaveBeenCalledWith({ error: 'Router facet error' });
     });
 
     it('should handle errors in router-level all action handlers', async () => {
@@ -467,7 +467,7 @@ describe('Router Handlers', () => {
       await userRouter['postAllAction'](req, mockRes as Response);
 
       expect(mockRes.status).toHaveBeenCalledWith(500);
-      expect(mockRes.json).toHaveBeenCalledWith(error);
+      expect(mockRes.json).toHaveBeenCalledWith({ error: 'Router all action error' });
     });
 
     it('should handle errors in router-level all facet handlers', async () => {
@@ -478,7 +478,7 @@ describe('Router Handlers', () => {
       await userRouter['getAllFacet'](req, mockRes as Response);
 
       expect(mockRes.status).toHaveBeenCalledWith(500);
-      expect(mockRes.json).toHaveBeenCalledWith(error);
+      expect(mockRes.json).toHaveBeenCalledWith({ error: error.message });
     });
   });
 });

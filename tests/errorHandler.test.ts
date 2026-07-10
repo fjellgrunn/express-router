@@ -356,5 +356,41 @@ describe('FjellErrorHandler', () => {
       expect(handler).toBeInstanceOf(Function);
     });
   });
+
+  describe('PII / secret redaction', () => {
+    it('should redact sensitive fields from operation.params and omit body by default', () => {
+      handler = new FjellErrorHandler({ logErrors: false });
+      mockReq.body = { password: 'secret-password', name: 'Alice' };
+      mockReq.query = { token: 'query-token', q: 'search' };
+      mockReq.params = { id: '123' };
+      const error = new Error('Test error');
+
+      handler.handle(error, mockReq as Request, mockRes as Response, mockNext);
+
+      const call = (mockRes.json as any).mock.calls[0][0];
+      expect(call.error.operation.params).toEqual({
+        token: '[REDACTED]',
+        q: 'search',
+        id: '123',
+      });
+      expect(call.error.operation.params.password).toBeUndefined();
+    });
+
+    it('should include redacted body in operation.params when logRequestBody is enabled', () => {
+      handler = new FjellErrorHandler({ logErrors: false, logRequestBody: true });
+      mockReq.body = { password: 'secret-password', name: 'Alice' };
+      mockReq.query = {};
+      mockReq.params = {};
+      const error = new Error('Test error');
+
+      handler.handle(error, mockReq as Request, mockRes as Response, mockNext);
+
+      const call = (mockRes.json as any).mock.calls[0][0];
+      expect(call.error.operation.params).toEqual({
+        password: '[REDACTED]',
+        name: 'Alice',
+      });
+    });
+  });
 });
 
