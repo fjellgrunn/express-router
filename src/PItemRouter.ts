@@ -9,6 +9,10 @@ import {
   resolveQueryLimits,
   stripQueryMetaParams,
 } from "./util/queryPagination.js";
+import {
+  validateFinderName,
+  validateOneParam,
+} from "./util/requestValidation.js";
 
 interface ParsedQuery {
   [key: string]: undefined | string | string[] | ParsedQuery | ParsedQuery[];
@@ -113,6 +117,16 @@ export class PItemRouter<T extends Item<S>, S extends string> extends ItemRouter
       const finder = query['finder'] as string;
       const finderParams = query['finderParams'] as string;
       const one = query['one'] as string;
+      const finderError = validateFinderName(finder);
+      if (finderError) {
+        res.status(400).json(finderError);
+        return;
+      }
+      const oneError = validateOneParam(one);
+      if (oneError) {
+        res.status(400).json(oneError);
+        return;
+      }
       const queryLimits = resolveQueryLimits(this.options.queryLimits);
 
       const pagination = resolvePagination(req.query.limit, req.query.offset, queryLimits);

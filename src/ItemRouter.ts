@@ -16,6 +16,9 @@ import { Instance } from "./Instance.js";
 import deepmerge from "deepmerge";
 import { NextFunction, Request, Response, Router } from "express";
 import LibLogger from "./logger.js";
+import {
+  validateFacetOrActionKey,
+} from "./util/requestValidation.js";
 import { createErrorHandler, ErrorHandlerOptions } from "./errorHandler.js";
 
 /**
@@ -290,6 +293,11 @@ export class ItemRouter<
     const libOperations = this.lib.operations;
     this.logger.debug('Posting All Action', { query: req?.query, params: req?.params, locals: res?.locals });
     const allActionKey = req.path.substring(req.path.lastIndexOf('/') + 1);
+    const keyError = validateFacetOrActionKey(allActionKey);
+    if (keyError) {
+      res.status(400).json(keyError);
+      return;
+    }
 
     try {
       // Check for router-level handler first
@@ -332,6 +340,11 @@ export class ItemRouter<
     const libOperations = this.lib.operations;
     this.logger.debug('Getting All Facet', { query: req?.query, params: req?.params, locals: res?.locals });
     const facetKey = req.path.substring(req.path.lastIndexOf('/') + 1);
+    const facetKeyError = validateFacetOrActionKey(facetKey);
+    if (facetKeyError) {
+      res.status(400).json(facetKeyError);
+      return;
+    }
 
     try {
       // Check for router-level handler first
@@ -376,6 +389,11 @@ export class ItemRouter<
     this.logger.debug('Posting Item Action', { query: req?.query, params: req?.params, locals: res?.locals });
     const ik = this.getIk(res);
     const actionKey = req.path.substring(req.path.lastIndexOf('/') + 1);
+    const actionKeyError = validateFacetOrActionKey(actionKey);
+    if (actionKeyError) {
+      res.status(400).json(actionKeyError);
+      return;
+    }
 
     try {
       // Check for router-level handler first
